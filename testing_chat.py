@@ -19,6 +19,10 @@ konten_text = '\n'.join(konten_values)
 for index, value in zip(filtered_df.index, konten_values):
     konten_text += f"{index}: {value}\n"
 
+put_table([
+    ['Pertanyaan', 'Jawaban', 'Referensi', 'Base Knowledge', 'Penilaian Referensi', 'Penilaian Jawaban'],
+    ['Kalo ssm ekspor itu apa', jawaban, konten_text, put_buttons(['NO', 'YES'], onclick=...), put_buttons(['NO', 'YES'], onclick=...), put_buttons(['NO', 'YES'], onclick=...)]
+])
 
 #input saran to gsheet
 aa = gspread.service_account(filename="sheet342.json")
