@@ -27,3 +27,4 @@ wr_sheet = sheet.worksheet("isi")
 
 saran = input("Masukkan kritik dan saran Anda:", type="text")
 wr_sheet.append_row([saran])
+#comment
