@@ -1,80 +1,97 @@
 import sqlite3
 from pywebio.input import select
-from pywebio.output import put_text, put_table, put_buttons
+from pywebio.output import put_text, put_table, put_buttons, clear
 import pandas as pd
-import gspread
+
+def load_data_from_excel(file_path):
+    """Load data from an Excel file into a DataFrame."""
+    return pd.read_excel(file_path)
+
+def connect_to_database(db_path):
+    """Connect to the SQLite database and return logs DataFrame."""
+    try:
+        with sqlite3.connect(db_path) as conn:
+            return pd.read_sql_query("SELECT * FROM logs", conn), None
+    except sqlite3.Error as e:
+        return pd.DataFrame(), e
+
+def get_unique_phone_numbers(df_logs):
+    """Get unique phone numbers from the logs DataFrame."""
+    return df_logs['phone_number'].unique() if not df_logs.empty else []
+
+def filter_logs_by_phone(df_logs, phone_number):
+    """Filter logs DataFrame by phone number."""
+    return df_logs[df_logs['phone_number'] == phone_number] if not df_logs.empty else pd.DataFrame()
+
+def process_references(df, filtered_logs):
+    """Process reference indices and retrieve corresponding 'konten' values."""
+    if not filtered_logs.empty:
+        filtered_logs['references'] = filtered_logs['reference_index'].str.strip("[]").str.split(", ")
+        filtered_logs.drop('reference_index', axis='columns', inplace=True)
+
+        # Limit to 5 references and ensure they are valid integers
+        filtered_logs['references'] = filtered_logs['references'].apply(
+            lambda refs: [df.at[int(idx), 'konten'] for idx in refs if idx.isdigit()][:5] if refs else []
+        )
 
 # Load the Excel file into a DataFrame
-df = pd.read_excel("pusatbantuan_lnsw_fix.xlsx")
+df = load_data_from_excel("pusatbantuan_lnsw_fix.xlsx")
 
-# Connect to SQLite database
-# Use a raw string for the file path or double backslashes to avoid escape sequence errors
-conn = sqlite3.connect(r'D:\Projects\LNSW\new_wa_api\logging_db\logs.db')
-cursor = conn.cursor()
-
-# Retrieve data from SQLite database
-try:
-    cursor.execute("SELECT * FROM logs")  # Replace 'tablename' with your actual table name
-
-    rows = cursor.fetchall()
-    
-except sqlite3.Error as e:
-    put_text(f"An error occurred while connecting to the database: {e}")
-    rows = []  # Ensure rows is an empty list if there's an error
-
-# The pd.read_sql_table function is not appropriate here as it expects a table name and a SQLAlchemy engine, not the result of a fetchall() call.
-# Instead, we should use pd.DataFrame to convert the rows fetched from the database into a DataFrame.
-# Additionally, we should handle the case where rows is an empty list due to a database error.
-if rows:
-    df_logs = pd.DataFrame(rows, columns=[column[0] for column in cursor.description])
-else:
-    df_logs = pd.DataFrame()
-# print(df_logs)
+# Connect to SQLite database and retrieve data
+df_logs, error = connect_to_database(r'D:\Projects\LNSW\new_wa_api\logging_db\logs.db')
+if error:
+    put_text(f"An error occurred while connecting to the database: {error}")
 
 # Get unique phone numbers from the DataFrame
-unique_phone_numbers = df_logs['phone_number'].unique()
+unique_phone_numbers = get_unique_phone_numbers(df_logs)
 
 # Let the user select a phone number
-selected_phone_number = select("Pilih nomor: ", options=unique_phone_numbers)
+selected_phone_number = select("Pilih nomor: ", options=list(unique_phone_numbers))
 
 # Filter the DataFrame based on the selected phone number
-filtered_logs = df_logs[df_logs['phone_number'] == selected_phone_number]
+filtered_logs = filter_logs_by_phone(df_logs, selected_phone_number)
 
 put_text("penjelasan tentang table")
 
-jawaban = filtered_logs['answer']
+# Process reference indices and retrieve corresponding 'konten' values
+process_references(df, filtered_logs)
 
+# Pagination setup
+records_per_page = 1
+total_pages = (len(filtered_logs) + records_per_page - 1) // records_per_page
+current_page = 0  # Use a global variable to track the current page
 
-references = filtered_logs['reference_index'][1].split(", ")
-print(references)
+def show_page(page, filtered_logs):
+    """Show a specific page of records."""
+    if 0 <= page < total_pages:
+        clear()  # Clear previous content
+        start_index = page * records_per_page
+        end_index = min(start_index + records_per_page, len(filtered_logs))
+        page_data = filtered_logs.iloc[start_index:end_index]
 
-# filtered_df = df[df['index'].isin(filtered_logs['reference_index'])]
+        table_data = [['No', 'Pertanyaan', 'Jawaban Sistem', 'Referensi', 'Apakah referensi sistem sudah up-to-date?', 'Apakah jawaban sudah sesuai referensi dari database?', 'Apakah referensi yang keluar relevan dengan pertanyaan yang ditanyakan?']]
+        for i, row in page_data.iterrows():
+            table_data.append([
+                i + 1, row['question'], row['answer'], ', '.join(row['references']),
+                put_buttons(['NO', 'YES'], onclick=lambda _: None),
+                put_buttons(['NO', 'YES'], onclick=lambda _: None),
+                put_buttons(['NO', 'YES'], onclick=lambda _: None)
+            ])
+        put_table(table_data)
 
-# print(filtered_df)
+        put_buttons(['Previous', 'Next'], onclick=[lambda: navigate_pages('previous'), lambda: navigate_pages('next')])
+    else:
+        put_text("No more records to display.")
 
+def navigate_pages(direction):
+    """Navigate between pages."""
+    global current_page
+    new_page = current_page + (1 if direction == 'next' else -1)
+    if 0 <= new_page < total_pages:
+        current_page = new_page
+        show_page(new_page, filtered_logs)
+    else:
+        put_text("No more records to navigate.")
 
-
-# # Concatenate index and values into a single string
-# konten_values = filtered_df['konten'].tolist()
-# konten_text = '\n'.join(konten_values)
-# for index, value in zip(filtered_df.index, konten_values):
-#     konten_text += f"{index}: {value}\n"
-
-# # print(filtered_logs)
-
-# i=0
-# for index, row in filtered_logs.iterrows():
-#     put_table([
-#         ['No', 'Pertanyaan', 'Jawaban Sistem', 'Referensi' ,'Apakah referensi sistem sudah up-to-date?', 'Apakah jawaban sudah sesuai referensi dari database?', 'Apakah referensi yang keluar relevan dengan pertanyaan yang ditanyakan?'],
-#         [i+1, row['question'], row['answer'], filtered_df[i],put_buttons(['NO', 'YES'], onclick=...), put_buttons(['NO', 'YES'], onclick=...), put_buttons(['NO', 'YES'], onclick=...)]
-#     ])
-#     i+=1
-
-# # #input saran to gsheet
-# # aa = gspread.service_account(filename="sheet342.json")
-# # sheet = aa.open("kritik saran")
-# # wr_sheet = sheet.worksheet("isi")
-
-# # saran = input("Masukkan kritik dan saran Anda:", type="text")
-# # wr_sheet.append_row([saran])
-# # #comment
+# Display the initial page
+show_page(current_page, filtered_logs)
