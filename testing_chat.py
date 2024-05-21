@@ -1,14 +1,13 @@
 import sqlite3
-<<<<<<< HEAD
 from pywebio.input import *
 from pywebio.output import *
-=======
-from pywebio.input import select
-from pywebio.output import put_text, put_table, put_buttons, clear
->>>>>>> 1e1624069ce1a6f35051816a2563a0de8dc92331
+from pywebio.session import *
+from pywebio import config, start_server
 import pandas as pd
+import gspread
+import emoji
 
-<<<<<<< HEAD
+
 # Global list and dictionary to store user inputs
 appen_list = []
 appen_dict = {
@@ -18,6 +17,9 @@ appen_dict = {
     "jawaban_sesuai": ""
 }
 
+# Ya = emoji.emojize("")
+
+
 def initialize_gspread():
     gc = gspread.service_account(filename="sheet342.json")
     sheet = gc.open("kritik saran")
@@ -25,9 +27,7 @@ def initialize_gspread():
 
 def button1_click(btn_val, row_idx, ref_idx):
     global appen_dict
-    put_text("tetsss")
     appen_dict[f"ref_relevan_{row_idx}_{ref_idx}"] = btn_val
-    put_text(appen_dict)
     with use_scope(f"btn_scope_{row_idx}_{ref_idx}_1", clear=True):
         put_text(f"clicked: {btn_val}")
 
@@ -60,12 +60,6 @@ def load_data_from_excel(file_path):
     """Load data from an Excel file into a DataFrame."""
     return pd.read_excel(file_path)
 
-=======
-def load_data_from_excel(file_path):
-    """Load data from an Excel file into a DataFrame."""
-    return pd.read_excel(file_path)
-
->>>>>>> 1e1624069ce1a6f35051816a2563a0de8dc92331
 def connect_to_database(db_path):
     """Connect to the SQLite database and return logs DataFrame."""
     try:
@@ -97,20 +91,12 @@ def process_references(df, filtered_logs):
 df = load_data_from_excel("pusatbantuan_lnsw_fix.xlsx")
 
 # Connect to SQLite database and retrieve data
-<<<<<<< HEAD
-df_logs, error = connect_to_database(r'logs.db')
-=======
 df_logs, error = connect_to_database(r'D:\Projects\LNSW\new_wa_api\logging_db\logs.db')
->>>>>>> 1e1624069ce1a6f35051816a2563a0de8dc92331
 if error:
     put_text(f"An error occurred while connecting to the database: {error}")
 
 # Get unique phone numbers from the DataFrame
 unique_phone_numbers = get_unique_phone_numbers(df_logs)
-<<<<<<< HEAD
-=======
-
->>>>>>> 1e1624069ce1a6f35051816a2563a0de8dc92331
 # Let the user select a phone number
 selected_phone_number = select("Pilih nomor: ", options=list(unique_phone_numbers))
 
@@ -126,40 +112,59 @@ process_references(df, filtered_logs)
 records_per_page = 1
 total_pages = (len(filtered_logs) + records_per_page - 1) // records_per_page
 current_page = 0  # Use a global variable to track the current page
-<<<<<<< HEAD
-def show_page(page, filtered_logs):
-    """Show a specific page of records."""
-    if 0 <= page < total_pages:
-        clear()  # Clear previous content
-        start_index = page * records_per_page
-        end_index = min(start_index + records_per_page, len(filtered_logs))
-        page_data = filtered_logs.iloc[start_index:end_index]
 
-        table_data = [['No', 'No Hp', 'Pertanyaan', 'Jawaban Sistem', 'Penilaian Referensi', 'Apakah jawaban sudah sesuai?']]
-        for idx, row in page_data.iterrows():
-            i = start_index + idx  # Absolute index
-            references_table = [['Referensi', 'apakah ref relevan', 'apakah ref up to date']]
-            for ref_idx, ref in enumerate(row['references']):
-                references_table.append([
-                    ref,
-                    put_scope(f"btn_scope_{i}_{ref_idx}_1", put_buttons(['yes', 'no', 'tdk tau'], onclick=lambda btn_val, row_idx=i, ref_idx=ref_idx: button1_click(btn_val, row_idx, ref_idx))),
-                    put_scope(f"btn_scope_{i}_{ref_idx}_2", put_buttons(['yes', 'no', 'tdk tau'], onclick=lambda btn_val, row_idx=i, ref_idx=ref_idx: button2_click(btn_val, row_idx, ref_idx)))
+
+css = """
+#pywebio-scope-buttons button{
+    width:1000px;
+}
+font{
+    color:red;
+    size:50px;
+}
+"""
+@config(css_style=css)
+# @use_scope('buttons')
+def show_page(page, filtered_logs):
+
+    set_env(output_max_width = '90%')
+    with use_scope('buttons'):
+
+        """Show a specific page of records."""
+        if 0 <= page < total_pages:
+            clear()  # Clear previous content
+            start_index = page * records_per_page
+            end_index = min(start_index + records_per_page, len(filtered_logs))
+            page_data = filtered_logs.iloc[start_index:end_index]
+
+            table_data = [['No', 'Pertanyaan', 'Jawaban Sistem', 'Penilaian Referensi', 'Apakah jawaban sudah sesuai?']]
+            for idx, row in page_data.iterrows():
+                i = start_index + idx  # Absolute index
+                references_table = [['Referensi', 'Apakah Ref Relevan?', 'Apakah Ref Up To Date?']]
+                for ref_idx, ref in enumerate(row['references']):
+                    references_table.append([
+                        ref,
+                        put_scope(f"btn_scope_{i}_{ref_idx}_1", put_buttons(['✅', '❎'], onclick=lambda btn_val, row_idx=i, ref_idx=ref_idx: button1_click(btn_val, row_idx, ref_idx))).style('text-align:center; width:100px'),
+                        put_scope(f"btn_scope_{i}_{ref_idx}_2", put_buttons(['✅', '❎', '❓'], onclick=lambda btn_val, row_idx=i, ref_idx=ref_idx: button2_click(btn_val, row_idx, ref_idx))).style('text-align:center; width:100px')
+                    ])
+                
+                table_data.append([
+                    i + 1, row['question'], row['answer'],
+                    # put_table(references_table),
+                    put_table(references_table, header=None, scope=f"table_scope_{i}"),
+                    put_scope(f"btn_scope_{i}_3", put_buttons(['✅', '❎'], onclick=lambda btn_val, row_idx=i: button3_click(btn_val, row_idx))).style('text-align:center; width:100px'),
                 ])
             
-            table_data.append([
-                i + 1, selected_phone_number, row['question'], row['answer'],
-                put_table(references_table),
-                put_scope(f"btn_scope_{i}_3", put_buttons(['NO', 'YES'], onclick=lambda btn_val, row_idx=i: button3_click(btn_val, row_idx)))
-            ])
-        
-        put_table(table_data)
+            # put_table(table_data, header=None, scope="main_table")
+            put_table(table_data)
 
-        # Submit button
-        put_button(['Submit'], onclick=collect_and_append_data)
 
-        put_buttons(['Previous', 'Next'], onclick=[lambda: navigate_pages('previous'), lambda: navigate_pages('next')])
-    else:
-        put_text("No more records to display.")  
+            put_buttons(['Previous', 'Next'], onclick=[lambda: navigate_pages('previous'), lambda: navigate_pages('next')])
+            
+            # Submit button
+            put_button(['Submit'], onclick=collect_and_append_data)
+        else:
+            put_text("No more records to display.")  
 
 def collect_and_append_data():
     global appen_list
@@ -181,30 +186,6 @@ def collect_and_append_data():
         ])
 
     append_to_sheet()
-=======
-
-def show_page(page, filtered_logs):
-    """Show a specific page of records."""
-    if 0 <= page < total_pages:
-        clear()  # Clear previous content
-        start_index = page * records_per_page
-        end_index = min(start_index + records_per_page, len(filtered_logs))
-        page_data = filtered_logs.iloc[start_index:end_index]
-
-        table_data = [['No', 'Pertanyaan', 'Jawaban Sistem', 'Referensi', 'Apakah referensi sistem sudah up-to-date?', 'Apakah jawaban sudah sesuai referensi dari database?', 'Apakah referensi yang keluar relevan dengan pertanyaan yang ditanyakan?']]
-        for i, row in page_data.iterrows():
-            table_data.append([
-                i + 1, row['question'], row['answer'], ', '.join(row['references']),
-                put_buttons(['NO', 'YES'], onclick=lambda _: None),
-                put_buttons(['NO', 'YES'], onclick=lambda _: None),
-                put_buttons(['NO', 'YES'], onclick=lambda _: None)
-            ])
-        put_table(table_data)
-
-        put_buttons(['Previous', 'Next'], onclick=[lambda: navigate_pages('previous'), lambda: navigate_pages('next')])
-    else:
-        put_text("No more records to display.")
->>>>>>> 1e1624069ce1a6f35051816a2563a0de8dc92331
 
 def navigate_pages(direction):
     """Navigate between pages."""
@@ -217,4 +198,5 @@ def navigate_pages(direction):
         put_text("No more records to navigate.")
 
 # Display the initial page
-show_page(current_page, filtered_logs)
+# show_page(current_page, filtered_logs)
+start_server(show_page(current_page, filtered_logs), debug=True)
