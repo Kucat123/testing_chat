@@ -1,9 +1,14 @@
 import sqlite3
+<<<<<<< HEAD
 from pywebio.input import *
 from pywebio.output import *
+=======
+from pywebio.input import select
+from pywebio.output import put_text, put_table, put_buttons, clear
+>>>>>>> 1e1624069ce1a6f35051816a2563a0de8dc92331
 import pandas as pd
-import gspread
 
+<<<<<<< HEAD
 # Global list and dictionary to store user inputs
 appen_list = []
 appen_dict = {
@@ -55,6 +60,12 @@ def load_data_from_excel(file_path):
     """Load data from an Excel file into a DataFrame."""
     return pd.read_excel(file_path)
 
+=======
+def load_data_from_excel(file_path):
+    """Load data from an Excel file into a DataFrame."""
+    return pd.read_excel(file_path)
+
+>>>>>>> 1e1624069ce1a6f35051816a2563a0de8dc92331
 def connect_to_database(db_path):
     """Connect to the SQLite database and return logs DataFrame."""
     try:
@@ -86,12 +97,20 @@ def process_references(df, filtered_logs):
 df = load_data_from_excel("pusatbantuan_lnsw_fix.xlsx")
 
 # Connect to SQLite database and retrieve data
+<<<<<<< HEAD
 df_logs, error = connect_to_database(r'logs.db')
+=======
+df_logs, error = connect_to_database(r'D:\Projects\LNSW\new_wa_api\logging_db\logs.db')
+>>>>>>> 1e1624069ce1a6f35051816a2563a0de8dc92331
 if error:
     put_text(f"An error occurred while connecting to the database: {error}")
 
 # Get unique phone numbers from the DataFrame
 unique_phone_numbers = get_unique_phone_numbers(df_logs)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 1e1624069ce1a6f35051816a2563a0de8dc92331
 # Let the user select a phone number
 selected_phone_number = select("Pilih nomor: ", options=list(unique_phone_numbers))
 
@@ -107,6 +126,7 @@ process_references(df, filtered_logs)
 records_per_page = 1
 total_pages = (len(filtered_logs) + records_per_page - 1) // records_per_page
 current_page = 0  # Use a global variable to track the current page
+<<<<<<< HEAD
 def show_page(page, filtered_logs):
     """Show a specific page of records."""
     if 0 <= page < total_pages:
@@ -161,6 +181,30 @@ def collect_and_append_data():
         ])
 
     append_to_sheet()
+=======
+
+def show_page(page, filtered_logs):
+    """Show a specific page of records."""
+    if 0 <= page < total_pages:
+        clear()  # Clear previous content
+        start_index = page * records_per_page
+        end_index = min(start_index + records_per_page, len(filtered_logs))
+        page_data = filtered_logs.iloc[start_index:end_index]
+
+        table_data = [['No', 'Pertanyaan', 'Jawaban Sistem', 'Referensi', 'Apakah referensi sistem sudah up-to-date?', 'Apakah jawaban sudah sesuai referensi dari database?', 'Apakah referensi yang keluar relevan dengan pertanyaan yang ditanyakan?']]
+        for i, row in page_data.iterrows():
+            table_data.append([
+                i + 1, row['question'], row['answer'], ', '.join(row['references']),
+                put_buttons(['NO', 'YES'], onclick=lambda _: None),
+                put_buttons(['NO', 'YES'], onclick=lambda _: None),
+                put_buttons(['NO', 'YES'], onclick=lambda _: None)
+            ])
+        put_table(table_data)
+
+        put_buttons(['Previous', 'Next'], onclick=[lambda: navigate_pages('previous'), lambda: navigate_pages('next')])
+    else:
+        put_text("No more records to display.")
+>>>>>>> 1e1624069ce1a6f35051816a2563a0de8dc92331
 
 def navigate_pages(direction):
     """Navigate between pages."""
