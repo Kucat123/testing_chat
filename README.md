@@ -1,0 +1,2 @@
+Deskripsi Umum
+Kode ini adalah aplikasi berbasis web yang menggunakan PyWebIO untuk mengambil masukan dari pengguna dan menyimpan data ke Google Sheets. Aplikasi ini juga memanfaatkan SQLite dan Pandas untuk memproses dan menampilkan data dari database dan file Excel. Pengguna dapat memberikan penilaian pada referensi dan jawaban yang diberikan, dan data tersebut kemudian disimpan ke Google Sheets.
